@@ -1,27 +1,26 @@
-package main
+package claim
 
 import (
 	"errors"
-	"time"
-
 	"github.com/dgrijalva/jwt-go"
+	"time"
 )
 
+var secret []byte
+
+const TokenExpireDuration = 5 * time.Minute
+
 type AuthClaim struct {
-	UserId uint64 `json:"userId"`
+	UserName string `json:"userName"`
 	jwt.StandardClaims
 }
 
-var secret = []byte("It is my secret")
-
-const TokenExpireDuration = 2 * time.Hour
-
-func GenToken(userId uint64) (string, error) {
+func GenToken(userName string) (string, error) {
 	c := AuthClaim{
-		UserId: userId,
+		UserName: userName,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(TokenExpireDuration).Unix(),
-			Issuer:    "TEST001",
+			Issuer:    "CC",
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, c)
