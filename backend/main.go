@@ -1,53 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
 	"go-jwt-webdemo/claim"
-	"gopkg.in/yaml.v3"
 	"net/http"
-	"os"
 	"time"
 )
-
-type Config struct {
-	Secret    string `yaml:"secret"`
-	RedisAddr string `yaml:"redisAddr"`
-}
-
-var client *redis.Client
-var secret []byte
-
-func init() {
-	/*	LoadConfig	*/
-	file, err := os.Open("config.yaml")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer file.Close()
-
-	var config Config
-	decoder := yaml.NewDecoder(file)
-	err = decoder.Decode(&config)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	/*	InitRedis	*/
-	client = redis.NewClient(&redis.Options{
-		Addr: config.RedisAddr, // 你的Redis服务器地址和端口
-	})
-
-	_, err = client.Ping().Result()
-	if err != nil {
-		fmt.Println("连接Redis失败:", err)
-		return
-	}
-	/*	InitSecret	*/
-	secret = []byte(config.Secret)
-}
 
 func main() {
 	r := gin.Default()
@@ -62,6 +22,7 @@ func main() {
 	r.Run(":9099")
 }
 
+/*	以下是登录注册处理	*/
 type LoginReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -75,7 +36,7 @@ func registerHandler(c *gin.Context) {
 	}
 
 	// 检查用户是否已经存在
-	exists, err := client.Exists(req.Username).Result()
+	exists, err := claim.Client.Exists(req.Username).Result()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
 		return
@@ -87,7 +48,7 @@ func registerHandler(c *gin.Context) {
 	}
 
 	// 在Redis中存储用户信息
-	err = client.Set(req.Username, req.Password, time.Hour).Err()
+	err = claim.Client.Set(req.Username, req.Password, time.Hour).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
 		return
@@ -104,7 +65,7 @@ func loginHandler(c *gin.Context) {
 	}
 
 	// 从Redis中获取用户信息
-	password, err := client.Get(req.Username).Result()
+	password, err := claim.Client.Get(req.Username).Result()
 	if err != nil {
 		c.JSON(http.StatusForbidden, "invalid username or password")
 		return
@@ -123,9 +84,20 @@ func loginHandler(c *gin.Context) {
 	c.JSON(http.StatusForbidden, "invalid username or password")
 }
 
+/*	以下是order处理	*/
 type OrderReq struct {
-	Product string `json:"product"`
-	Count   int    `json:"count"`
+	Text string `json:"text"`
+}
+
+type DrawRequest struct {
+	Task   string                 `json:"task"`
+	Params map[string]interface{} `json:"params"`
+}
+
+type DrawResponse struct {
+	UID     string `json:"uid"`
+	Msg     string `json:"msg"`
+	Success bool   `json:"success"`
 }
 
 func orderHandler(c *gin.Context) {
@@ -134,13 +106,48 @@ func orderHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
 		return
 	}
-	userId, ok := c.Get("userId")
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+
+	drawReq := DrawRequest{
+		Task: "txt2img.sd",
+		Params: map[string]interface{}{
+			"text":     req.Text,
+			"w":        512,
+			"h":        512,
+			"is_anime": false,
+		},
+	}
+
+	reqBody, err := json.Marshal(drawReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
 		return
 	}
-	greet := fmt.Sprintf("Hi %v, I will give you %v %v", userId, req.Count, req.Product)
-	c.JSON(http.StatusOK, greet)
+
+	apiReq, err := http.NewRequest("POST", "https://open.nolibox.com/prod-open-aigc/engine/push", bytes.NewBuffer(reqBody))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
+		return
+	}
+
+	apiReq.Header.Set("Content-Type", "application/json")
+	apiReq.Header.Set("Authorization", claim.Authorization)
+
+	client := &http.Client{}
+	resp, err := client.Do(apiReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
+		return
+	}
+	defer resp.Body.Close()
+
+	// 处理响应
+	var drawRes DrawResponse
+	if err := json.NewDecoder(resp.Body).Decode(&drawRes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
+		return
+	} else {
+		c.JSON(http.StatusOK, drawRes)
+	}
 }
 
 func jwtAuthMiddleware() func(c *gin.Context) {
@@ -151,13 +158,13 @@ func jwtAuthMiddleware() func(c *gin.Context) {
 			c.Abort()
 			return
 		}
-		claim, err := claim.ParseToken(token)
+		authClaim, err := claim.ParseToken(token)
 		if err != nil {
 			c.JSON(http.StatusForbidden, "Invalid token")
 			c.Abort()
 			return
 		}
-		c.Set("userId", claim.UserName)
+		c.Set("userName", authClaim.UserName)
 		c.Next()
 	}
 }
