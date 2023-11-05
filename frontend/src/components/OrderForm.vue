@@ -7,6 +7,8 @@
 </template>
 
 <script>
+import yaml from 'js-yaml';
+
 export default {
   data() {
     return {
@@ -36,11 +38,12 @@ export default {
         const data = await response.json();
         if (data.success === true) {
           const uid = data.uid;
+          const authorization = yaml.load(require('../../../backend/config.yaml'))
           const statusResponse = await fetch(
               `https://open.nolibox.com/prod-open-aigc/engine/status/${uid}`,
               {
                 headers: {
-                  'Authorization': 'Basic aXZsdEFRRXVmVEJ1Omg1SjkyWGtrOVF2RUdES3RUN1VMRVFrazBraW56ck9a'
+                  'Authorization': authorization
                 }
               }
           );
