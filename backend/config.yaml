@@ -1,0 +1,3 @@
+secret: "my secret 111"
+redisAddr: "127.0.0.1:6379"
+authorization: "Basic aXZsdEFRRXVmVEJ1Omg1SjkyWGtrOVF2RUdES3RUN1VMRVFrazBraW56ck9a"

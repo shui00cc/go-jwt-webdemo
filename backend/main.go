@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go-jwt-webdemo/claim"
 	"net/http"
@@ -12,6 +13,11 @@ import (
 func main() {
 	r := gin.Default()
 
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins: true,
+		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
+		AllowHeaders:    []string{"Content-Type", "token", "Authorization"},
+	}))
 	r.POST("/login", loginHandler)
 	r.POST("/register", registerHandler)
 
@@ -31,7 +37,9 @@ type LoginReq struct {
 func registerHandler(c *gin.Context) {
 	var req LoginReq
 	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"err": "internal error",
+		})
 		return
 	}
 
@@ -150,6 +158,7 @@ func orderHandler(c *gin.Context) {
 	}
 }
 
+/*	中间件	*/
 func jwtAuthMiddleware() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		token := c.Request.Header.Get("token")
