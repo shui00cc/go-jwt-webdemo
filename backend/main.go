@@ -6,6 +6,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go-jwt-webdemo/claim"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -24,6 +26,7 @@ func main() {
 	api := r.Group("/api")
 	api.Use(jwtAuthMiddleware())
 	api.POST("/order", orderHandler)
+	api.POST("/config", configHandler)
 
 	r.Run(":9099")
 }
@@ -156,6 +159,45 @@ func orderHandler(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, drawRes)
 	}
+}
+
+/*	以下是config处理	*/
+type Config struct {
+	Secret        string `yaml:"secret"`
+	RedisAddr     string `yaml:"redisAddr"`
+	Authorization string `yaml:"authorization"`
+}
+
+func configHandler(c *gin.Context) {
+	config, err := readConfig("config.yaml")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Internal Server Error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"authorization": config.Authorization,
+	})
+}
+
+func readConfig(filename string) (Config, error) {
+	var config Config
+
+	// 读取config.yaml文件
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return config, err
+	}
+
+	// 解析yaml
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return config, err
+	}
+
+	return config, nil
 }
 
 /*	中间件	*/

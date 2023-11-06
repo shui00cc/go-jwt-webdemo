@@ -1,9 +1,9 @@
 <template>
   <div>
-    <input v-model="username" placeholder="用户名" /><br />
-    <input v-model="password" type="password" placeholder="密码" /><br />
-    <button @click="register">注册</button>
-    <button @click="login">登录</button>
+    <input v-model="username" placeholder="用户名" class="input"/><br />
+    <input v-model="password" type="password" placeholder="密码" class="input"/><br />
+    <button @click="register" class="button">注册</button>
+    <button @click="login" class="button">登录</button>
   </div>
 </template>
 
@@ -30,8 +30,13 @@ export default {
         });
 
         const data = await response.json();
+        if (response.status === 200) {
+          alert('用户注册成功');
+          location.reload();
+        } else {
+          alert(data)
+        }
         alert(data);
-        location.reload();
       } catch (error) {
         console.error("Error:", error);
       }
@@ -50,9 +55,14 @@ export default {
         });
 
         const data = await response.json();
-        alert('user login successfully');
-        document.cookie = `token=${data.token}`;
-        this.$router.push("/order");
+        if (response.status === 200) {
+          document.cookie = `token=${data.token}`;
+          this.$router.push("/order");
+          alert('用户登录成功');
+        } else {
+          alert(data)
+        }
+
       } catch (error) {
         console.error("Error:", error);
       }
@@ -61,3 +71,20 @@ export default {
 
 };
 </script>
+
+<style scoped>
+.login-register {
+  text-align: center;
+}
+
+.input {
+  width: 200px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.button {
+  padding: 10px 20px;
+  margin-right: 10px;
+}
+</style>
