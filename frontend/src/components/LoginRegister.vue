@@ -18,7 +18,7 @@ export default {
   methods: {
     async register() {
       try {
-        const response = await fetch("http://localhost:9099/register", {
+        const response = await fetch("http://47.108.72.107:9099/register", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -43,7 +43,7 @@ export default {
     },
     async login() {
       try {
-        const response = await fetch("http://localhost:9099/login", {
+        const response = await fetch("http://47.108.72.107:9099/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -22,7 +22,7 @@ export default {
             "$1"
         );
 
-        const response = await fetch("http://localhost:9099/api/order", {
+        const response = await fetch("http://47.108.72.107:9099/api/order", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -38,7 +38,7 @@ export default {
           if (data.success === true) {
             const uid = data.uid;
 
-            const response = await fetch('http://localhost:9099/api/config',
+            const response = await fetch('http://47.108.72.107:9099/api/config',
                 {
                   method: "POST",
                   headers: {

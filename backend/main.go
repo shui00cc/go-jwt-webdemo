@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,6 +39,13 @@ type LoginReq struct {
 	Password string `json:"password"`
 }
 
+// encryptPassword 对密码进行加密
+func encryptPassword(data []byte) (result string) {
+	h := md5.New()
+	h.Write([]byte("ccsecret"))
+	return hex.EncodeToString(h.Sum(data))
+}
+
 func registerHandler(c *gin.Context) {
 	var req LoginReq
 	if err := c.BindJSON(&req); err != nil {
@@ -59,6 +68,7 @@ func registerHandler(c *gin.Context) {
 	}
 
 	// 在Redis中存储用户信息
+	req.Password = encryptPassword([]byte(req.Password))
 	err = claim.Client.Set(req.Username, req.Password, time.Hour).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
@@ -82,7 +92,7 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
-	if password == req.Password {
+	if password == encryptPassword([]byte(req.Password)) {
 		token, err := claim.GenToken(req.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"err": "internal error"})
